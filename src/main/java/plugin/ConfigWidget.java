@@ -6,13 +6,21 @@ import java.util.function.Function;
 import java.util.logging.Level;
 import edu.wpi.first.shuffleboard.api.data.MapData;
 import edu.wpi.first.shuffleboard.api.widget.Description;
+import javafx.application.Platform;
+import javafx.beans.property.DoubleProperty;
+import javafx.beans.property.SimpleDoubleProperty;
 import javafx.geometry.Insets;
+import javafx.geometry.Orientation;
+import javafx.geometry.Pos;
 import javafx.scene.control.Label;
 import javafx.scene.control.TextField;
 import javafx.scene.control.TextFormatter;
 import javafx.scene.layout.AnchorPane;
 import javafx.scene.layout.GridPane;
+import javafx.scene.layout.HBox;
 import javafx.scene.layout.Pane;
+import javafx.scene.layout.VBox;
+import javafx.scene.layout.TilePane;
 
 @Description(dataTypes = { MapData.class }, name = "ConfigWidget")
 public class ConfigWidget extends IterativeWidget<MapData> {
@@ -23,20 +31,22 @@ public class ConfigWidget extends IterativeWidget<MapData> {
 	public ConfigWidget() {
 		mainPane = new AnchorPane();
 		mainPane.setMinWidth(256);
-		mainPane.setMinHeight(200);
-
+		mainPane.setMinHeight(100);
 		launch(500);
 	}
 
 	public void init() {
 		int i = 0;
 		variableGrid = new GridPane();
+		TilePane variableBox = new TilePane(Orientation.VERTICAL);
 
 		variables = new HashMap<String, ConfigEntry>();
 
 		variableGrid.setPadding(new Insets(10, 10, 10, 10));
 		variableGrid.setHgap(10);
-		mainPane.getChildren().add(variableGrid);
+
+		mainPane.getChildren().add(variableBox);
+		//mainPane.getChildren().add(variableGrid);
 
 		if (dataProperty().get().asMap().entrySet().size() > 0) {
 			for(var entry : dataProperty().get().asMap().entrySet()) {
@@ -50,7 +60,23 @@ public class ConfigWidget extends IterativeWidget<MapData> {
 					if(!variables.containsKey(varName)) {
 						var ce = new ConfigEntry(varName);
 						variables.put(varName, ce);
-						variableGrid.addRow(i, ce.title, ce.text);
+
+						GridPane horizontalBox = new GridPane();
+						horizontalBox.setHgap(10);
+						horizontalBox.setPadding(new Insets(10, 10, 10, 10));
+						horizontalBox.prefWidthProperty().bind(mainPane.widthProperty());
+						//horizontalBox.minWidthProperty().bind(horizontalBox.widthProperty());
+						ce.title.minWidthProperty().bind(ce.title.widthProperty());
+						//ce.title.prefWidthProperty().bind(ce.title.widthProperty());
+
+						ce.text.prefWidthProperty().bind(mainPane.widthProperty().subtract(ce.title.widthProperty().add(50)));
+						ce.text.minWidthProperty().bind(mainPane.widthProperty().subtract(ce.title.widthProperty().add(50)));
+						ce.text.maxWidthProperty().bind(mainPane.widthProperty().subtract(ce.title.widthProperty().add(50)));
+
+
+						horizontalBox.addRow(0, ce.title, ce.text);
+						
+						variableBox.getChildren().add(horizontalBox);
 						i++;
 					}
 					switch(varType) {
@@ -61,6 +87,14 @@ public class ConfigWidget extends IterativeWidget<MapData> {
 				}
 			}
 		}
+		new Thread(() -> {
+            try {
+                Thread.sleep(1000);
+                Platform.runLater(() -> {
+					
+                });
+            } catch (InterruptedException e) {}
+        }).start();
 	}
 	public void update() {
 		for(var entry : variables.values()) {

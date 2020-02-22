@@ -12,32 +12,23 @@ import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
-import java.util.function.Function;
 import java.util.logging.FileHandler;
 import java.util.logging.Level;
 import java.util.logging.LogRecord;
 import java.util.logging.Logger;
 import java.util.logging.SimpleFormatter;
 
-import javax.print.DocFlavor.STRING;
-
-import org.fxmisc.easybind.EasyBind;
-
-import edu.wpi.first.networktables.LogMessage;
 import edu.wpi.first.shuffleboard.api.data.MapData;
 import edu.wpi.first.shuffleboard.api.prefs.Group;
 import edu.wpi.first.shuffleboard.api.prefs.Setting;
-import edu.wpi.first.shuffleboard.api.sources.DataSource;
-import edu.wpi.first.shuffleboard.api.theme.Theme;
 import edu.wpi.first.shuffleboard.api.widget.Description;
-import edu.wpi.first.shuffleboard.app.prefs.AppPreferences;
+import javafx.application.Platform;
 import javafx.beans.property.BooleanProperty;
 import javafx.beans.property.IntegerProperty;
 import javafx.beans.property.SimpleBooleanProperty;
 import javafx.beans.property.SimpleIntegerProperty;
 import javafx.beans.property.SimpleStringProperty;
 import javafx.beans.property.StringProperty;
-import javafx.beans.value.ObservableValue;
 import javafx.collections.FXCollections;
 import javafx.collections.ListChangeListener;
 import javafx.geometry.Insets;
@@ -60,13 +51,14 @@ import javafx.scene.text.Text;
 import javafx.scene.text.TextFlow;
 import javafx.util.StringConverter;
 
-@Description(dataTypes = { MapData.class }, name = "LoggerWidget")
-public class LoggerWidget extends IterativeWidget<MapData> {
+@Description(dataTypes = { MapData.class }, name = "ConsoleWidget")
+public class ConsoleWidget extends IterativeWidget<MapData> {
 
     TextFlow console;
     VBox box;
     ScrollPane consoleScroller;
     ArrayList<CheckedClass> allClassElements;
+    CheckedClass allButton;
     ArrayList<String> activeClassPaths;
     ArrayList<String> activeClassNames;
 
@@ -78,12 +70,12 @@ public class LoggerWidget extends IterativeWidget<MapData> {
 
     private static Logger robotLogger = Logger.getLogger("Robot");
 
-    String[] severities = new String[] {"Info", "Warning", "Severe" };
+    String[] severities = new String[] { "Info", "Warning", "Severe" };
 
     StringProperty allClassesProperty, startupMessageProperty;
     IntegerProperty maxPrintsProperty;
 
-    public LoggerWidget() {
+    public ConsoleWidget() {
         mainPane = new AnchorPane();
         mainPane.setMinWidth(200);
         mainPane.setMinHeight(200);
@@ -126,9 +118,11 @@ public class LoggerWidget extends IterativeWidget<MapData> {
 
             SimpleFormatter logFormat = new SimpleFormatter() {
                 SimpleDateFormat timeFormatter = new SimpleDateFormat("[hh:mm:ss]");
+
                 @Override
                 public synchronized String format(LogRecord lr) {
-                    return timeFormatter.format(new Date(lr.getMillis())) + " [" + lr.getLevel().getLocalizedName() + "] " + lr.getMessage() + "\n";
+                    return timeFormatter.format(new Date(lr.getMillis())) + " [" + lr.getLevel().getLocalizedName()
+                            + "] " + lr.getMessage() + "\n";
                 }
             };
 
@@ -154,10 +148,10 @@ public class LoggerWidget extends IterativeWidget<MapData> {
         severity.getSelectionModel().selectFirst();
 
         Text t = new Text();
-            t.setStyle("-fx-fill: YELLOW;");
-            t.setText(startupMessageProperty.get());
-            t.setFont(Font.font("Consolas", FontWeight.SEMI_BOLD, FontPosture.REGULAR, 14));
-            console.getChildren().add(t);
+        t.setStyle("-fx-fill: YELLOW;");
+        t.setText(startupMessageProperty.get());
+        t.setFont(Font.font("Consolas", FontWeight.SEMI_BOLD, FontPosture.REGULAR, 14));
+        console.getChildren().add(t);
 
         consoleScroller = new ScrollPane(console);
         consoleScroller.setPadding(new Insets(0, 0, 0, 10));
@@ -186,12 +180,12 @@ public class LoggerWidget extends IterativeWidget<MapData> {
                     finalText = text + event.getText();
                 }
                 final String finalFinalText = finalText;
-                
+
                 Comparator<CheckedClass> nameComparator = new Comparator<CheckedClass>() {
-                    Comparator<String> nameComparator =
-                        Comparator.<String, Integer>comparing(s -> numberOfMatchingChars(s, finalFinalText))
-                            .reversed()
+                    Comparator<String> nameComparator = Comparator
+                            .<String, Integer>comparing(s -> numberOfMatchingChars(s, finalFinalText)).reversed()
                             .thenComparing(Comparator.naturalOrder());
+
                     @Override
                     public int compare(CheckedClass a, CheckedClass b) {
                         return nameComparator.compare(a.className, b.className);
@@ -204,14 +198,17 @@ public class LoggerWidget extends IterativeWidget<MapData> {
             }
         });
         classLabel.showingProperty().addListener((a, b, c) -> {
-            if(c) classLabel.promptTextProperty().setValue("");
-            else classLabel.promptTextProperty().setValue("Classes");
+            if (c)
+                classLabel.promptTextProperty().setValue("");
+            else
+                classLabel.promptTextProperty().setValue("Classes");
         });
         classLabel.converterProperty().setValue(new StringConverter<CheckedClass>() {
             @Override
             public CheckedClass fromString(String str) {
                 return null;
             }
+
             @Override
             public String toString(CheckedClass c) {
                 return classLabel.promptTextProperty().get();
@@ -229,12 +226,13 @@ public class LoggerWidget extends IterativeWidget<MapData> {
                     if (!empty) {
                         final CheckBox cb = new CheckBox(item.className);
                         cb.selectedProperty().bind(item.isActive);
-                        if(item.className == "All") {
+                        if (item.className == "All") {
+                            allButton = item;
                             item.isActive.addListener((__, oldVal, newVal) -> {
-                                if(newVal && !oldVal) {
-                                    classLabel.getItems().forEach(c -> c.isActive.setValue(true)); 
-                                } else if(oldVal && !newVal) {
-                                    classLabel.getItems().forEach(c -> c.isActive.setValue(false)); 
+                                if (newVal && !oldVal) {
+                                    classLabel.getItems().forEach(c -> c.isActive.setValue(true));
+                                } else if (oldVal && !newVal) {
+                                    classLabel.getItems().forEach(c -> c.isActive.setValue(false));
                                 }
                             });
                         }
@@ -243,9 +241,7 @@ public class LoggerWidget extends IterativeWidget<MapData> {
                 }
             };
             cell.addEventFilter(MouseEvent.MOUSE_RELEASED, event -> {
-                cell.getItem().isActive.setValue(
-                    !cell.getItem().isActive.get()
-                );
+                cell.getItem().isActive.setValue(!cell.getItem().isActive.get());
                 classLabel.getSelectionModel().select(cell.getItem());
             });
             return cell;
@@ -254,23 +250,22 @@ public class LoggerWidget extends IterativeWidget<MapData> {
         List<CheckedClass> allClassesAsBoxes = new ArrayList<CheckedClass>();
         allClassesAsBoxes.add(new CheckedClass("All"));
 
-        for(String s : (String[]) dataProperty().get().asMap().get("Printing Classes")) {
+        for (String s : (String[]) dataProperty().get().asMap().get("Printing Classes")) {
             activeClassPaths.add(s);
         }
 
-        for(String s : allClasses) {
+        for (String s : allClasses) {
             var checkedClass = new CheckedClass(s);
 
-            if(activeClassPaths.contains(s)) {
+            if (activeClassPaths.contains(s)) {
                 checkedClass.isActive.setValue(true);
             }
             checkedClass.isActive.addListener((__, oldVal, newVal) -> {
-                if(newVal) {
-                    if(!activeClassPaths.contains(s)) {
+                if (newVal) {
+                    if (!activeClassPaths.contains(s)) {
                         activeClassPaths.add(s);
                     }
-                }
-                else {
+                } else {
                     activeClassPaths.remove(s);
                 }
             });
@@ -279,9 +274,19 @@ public class LoggerWidget extends IterativeWidget<MapData> {
         classLabel.setItems(FXCollections.observableArrayList(allClassesAsBoxes));
 
         var options = new HBox(severity, classLabel);
-
         box.getChildren().addAll(consoleScroller, options);
         mainPane.getChildren().addAll(box);
+
+        new Thread(() -> {
+            try {
+                Thread.sleep(1000);
+                Platform.runLater(() -> {
+                    if(activeClassPaths.size() == 0) {
+                        allButton.isActive.setValue(true);
+                    }
+                });
+            } catch (InterruptedException e) {}
+        }).start();
     }
     private class CheckedClass {
         public BooleanProperty isActive = new SimpleBooleanProperty();

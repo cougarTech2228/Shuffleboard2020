@@ -23,7 +23,8 @@ public class App extends Plugin {
 		return ImmutableList.of(
 			WidgetType.forAnnotatedWidget(DrumWidget.class),
 			WidgetType.forAnnotatedWidget(ConfigWidget.class),
-			WidgetType.forAnnotatedWidget(LoggerWidget.class)
+			WidgetType.forAnnotatedWidget(ConsoleWidget.class),
+			WidgetType.forAnnotatedWidget(CougarBackground.class)
 		);
 	}
 	@Override
